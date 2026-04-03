@@ -1,0 +1,12 @@
+{
+  "name": "ratio-resizer",
+  "version": "1.0.0",
+  "description": "A Figma plugin to resize objects by aspect ratio",
+  "scripts": {
+    "build": "tsc --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.90.0",
+    "typescript": "^5.0.0"
+  }
+}

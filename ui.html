@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RatioResizer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #f5f5f2;
+  --surface: #ffffff;
+  --border:  #d8d8d0;
+  --border2: #c0c0b8;
+  --ink:     #0a0a0a;
+  --ink2:    #555550;
+  --ink3:    #999990;
+  --accent:  #1a1aff;
+  --success: #007a3d;
+  --danger:  #cc2200;
+  --r:       4px;
+  --mono:    "SF Mono", "Fira Mono", "Cascadia Mono", monospace;
+}
+
+html, body {
+  width: 300px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  letter-spacing: 0.01em;
+}
+
+body { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── Screens ─────────────────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; flex: 1; }
+.screen.active { display: flex; }
+
+/* ── IDLE ────────────────────────────────────────────────────────── */
+#screen-idle {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px 24px;
+  text-align: center;
+  border: 1px solid var(--border);
+  margin: 12px;
+  border-radius: var(--r);
+  background: var(--surface);
+}
+.idle-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-weight: 700;
+}
+.idle-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.idle-sub {
+  font-size: 10px;
+  color: var(--ink3);
+  line-height: 1.6;
+  margin-top: 2px;
+}
+.idle-create-btn {
+  margin-top: 10px;
+  background: none;
+  border: 1px dashed var(--border2);
+  border-radius: var(--r);
+  color: var(--ink3);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 8px 16px;
+  cursor: pointer;
+  width: 100%;
+  transition: color 0.1s, border-color 0.1s;
+  letter-spacing: 0.04em;
+}
+.idle-create-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* ── RESIZE SCREEN ───────────────────────────────────────────────── */
+#screen-resize { gap: 0; }
+
+/* Top bar — selection */
+.sel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.sel-indicator {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.sel-name {
+  font-size: 11px;
+  font-weight: 700;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.sel-dims-badge {
+  font-size: 10px;
+  color: var(--ink3);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+/* Dimension cards */
+.dim-section {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.dim-card {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.1s, background 0.1s;
+  position: relative;
+}
+.dim-card:hover { background: #f0f0ec; }
+.dim-card.locked {
+  border-color: var(--accent);
+  background: #eeeeff;
+}
+.dim-card.computing { opacity: 0.45; }
+
+.dim-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.dim-axis {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.dim-status {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.dim-card.locked .dim-status { opacity: 1; color: var(--accent); }
+.dim-card.locked .dim-status::after { content: 'KEEP'; }
+.dim-card.computing .dim-status { opacity: 1; color: var(--ink3); }
+.dim-card.computing .dim-status::after { content: 'CHANGE'; }
+
+.dim-input {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+  background: none;
+  border: none;
+  outline: none;
+  width: 100%;
+  padding: 0;
+  -moz-appearance: textfield;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.dim-input::-webkit-inner-spin-button,
+.dim-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.dim-unit {
+  font-size: 9px;
+  color: var(--ink3);
+  margin-top: 3px;
+  letter-spacing: 0.06em;
+}
+
+.dim-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--border2);
+  padding: 0 2px;
+  user-select: none;
+  align-self: center;
+}
+
+.lock-hint {
+  font-size: 9px;
+  color: var(--ink3);
+  text-align: center;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  letter-spacing: 0.04em;
+}
+.lock-hint b { color: var(--accent); font-weight: 700; }
+
+/* Ratio section */
+.ratio-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 8px;
+}
+.ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.ratio-pill {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 6px 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.1s, background 0.1s;
+  background: var(--bg);
+  position: relative;
+}
+.ratio-pill:hover { border-color: var(--accent); background: #eeeeff; }
+.ratio-pill:active { transform: scale(0.96); }
+.ratio-pill.active {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.ratio-pill.active .pill-ratio { color: #fff; }
+.ratio-pill.active .pill-name  { color: rgba(255,255,255,0.7); }
+.ratio-pill.hovering { border-color: var(--accent); background: #eeeeff; }
+.pill-ratio {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1;
+}
+.pill-name {
+  font-size: 7px;
+  color: var(--ink3);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Custom ratio */
+.custom-section {
+  border: 1px dashed var(--border2);
+  border-radius: var(--r);
+  padding: 8px 10px;
+  background: var(--bg);
+  margin-top: 4px;
+}
+.custom-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 6px;
+}
+.custom-formats {
+  font-size: 9px;
+  color: var(--ink3);
+  margin-bottom: 6px;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+.custom-formats code {
+  font-family: var(--mono);
+  background: var(--border);
+  border-radius: 2px;
+  padding: 0 3px;
+  color: var(--ink2);
+  font-size: 9px;
+}
+.custom-row {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.custom-row input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  color: var(--ink);
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color 0.1s;
+  letter-spacing: 0.02em;
+}
+.custom-row input::placeholder { color: var(--ink3); }
+.custom-row input:focus { border-color: var(--accent); }
+.custom-row input.invalid { border-color: var(--danger); }
+.custom-add-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--ink);
+  border: none;
+  border-radius: var(--r);
+  color: #fff;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: opacity 0.1s;
+}
+.custom-add-btn:hover { opacity: 0.75; }
+.custom-add-btn:disabled { opacity: 0.25; cursor: default; }
+.steal-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--ink2);
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  transition: border-color 0.1s, color 0.1s;
+  text-transform: uppercase;
+}
+.steal-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Result callout */
+.result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  min-height: 40px;
+  gap: 8px;
+}
+.result-row .result-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  flex-shrink: 0;
+}
+.result-dims {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink3);
+  letter-spacing: -0.02em;
+  text-align: right;
+  transition: color 0.15s;
+}
+.result-dims.active { color: var(--accent); }
+.result-dims.flash { animation: res-flash 0.25s ease; }
+@keyframes res-flash {
+  0%   { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+.result-unit { font-size: 9px; color: var(--ink3); font-weight: 400; }
+
+/* Action row */
+.action-row {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.round-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--ink3);
+  padding: 0 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 0.1s, color 0.1s;
+  line-height: 1.3;
+  text-align: center;
+}
+.round-btn:hover:not(:disabled) { border-color: var(--ink2); color: var(--ink); }
+.round-btn:disabled { opacity: 0.3; cursor: default; }
+.round-btn.did-round { border-color: var(--success); color: var(--success); }
+
+.apply-btn {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r);
+  color: #fff;
+  padding: 10px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: opacity 0.1s, transform 0.1s;
+}
+.apply-btn:hover { opacity: 0.88; }
+.apply-btn:active { transform: scale(0.98); }
+.apply-btn:disabled { opacity: 0.2; cursor: default; transform: none; }
+.apply-btn.ready { animation: apply-pulse 0.3s ease; }
+@keyframes apply-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(26,26,255,0.4); }
+  100% { box-shadow: 0 0 0 6px rgba(26,26,255,0); }
+}
+
+/* Footer link */
+.footer-link {
+  text-align: center;
+  padding: 8px 12px 12px;
+}
+.footer-link button {
+  font-family: var(--mono);
+  background: none;
+  border: none;
+  color: var(--ink3);
+  font-size: 10px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 2px 4px;
+  transition: color 0.1s;
+}
+.footer-link button:hover { color: var(--accent); }
+
+/* ── CREATE SCREEN ───────────────────────────────────────────────── */
+#screen-create { gap: 0; }
+
+.create-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.back-btn {
+  font-family: var(--mono);
+  background: none;
+  border: none;
+  color: var(--ink2);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 6px 0 0;
+  line-height: 1;
+  transition: color 0.1s;
+}
+.back-btn:hover { color: var(--accent); }
+.create-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.create-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+}
+
+.create-dim-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.create-dim-field { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.create-dim-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.create-dim-wrap { position: relative; }
+.create-dim-wrap input {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--ink);
+  padding: 7px 26px 7px 8px;
+  outline: none;
+  transition: border-color 0.1s;
+  -moz-appearance: textfield;
+  letter-spacing: -0.01em;
+}
+.create-dim-wrap input:focus { border-color: var(--accent); }
+.create-dim-wrap input::-webkit-inner-spin-button,
+.create-dim-wrap input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.create-dim-wrap .unit {
+  position: absolute;
+  right: 7px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 9px; color: var(--ink3);
+  pointer-events: none;
+  letter-spacing: 0.04em;
+}
+.create-sep {
+  font-size: 14px;
+  color: var(--ink3);
+  padding-bottom: 8px;
+  user-select: none;
+}
+
+.create-ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.create-custom-row {
+  display: flex;
+  gap: 4px;
+}
+.create-custom-row input {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--ink);
+  padding: 6px 8px;
+  outline: none;
+  transition: border-color 0.1s;
+}
+.create-custom-row input::placeholder { color: var(--ink3); }
+.create-custom-row input:focus { border-color: var(--accent); }
+
+.create-preview-line {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 8px 12px;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.create-preview-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.create-preview-dims {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+.create-preview-dims.invalid { color: var(--ink3); }
+
+.create-btn {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--ink);
+  border: none;
+  border-radius: var(--r);
+  color: #fff;
+  padding: 10px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: opacity 0.1s, transform 0.1s;
+}
+.create-btn:hover { opacity: 0.82; }
+.create-btn:active { transform: scale(0.98); }
+.create-btn:disabled { opacity: 0.2; cursor: default; }
+
+/* ── Toast ───────────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 10px; left: 10px; right: 10px;
+  background: var(--ink);
+  border-radius: var(--r);
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-align: center;
+  transform: translateY(40px);
+  opacity: 0;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+  z-index: 999;
+  pointer-events: none;
+}
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { background: var(--success); }
+#toast.error   { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     IDLE
+════════════════════════════════════════════════════════════════════ -->
+<div id="screen-idle" class="screen active">
+  <div class="idle-icon">[⇄]</div>
+  <div class="idle-title">Select an object</div>
+  <div class="idle-sub">Click anything on the canvas.<br>Ratio controls appear here.</div>
+  <button class="idle-create-btn" onclick="goCreate()">+ New shape from scratch</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     RESIZE
+════════════════════════════════════════════════════════════════════ -->
+<div id="screen-resize" class="screen">
+
+  <!-- Selection bar -->
+  <div class="sel-bar">
+    <div class="sel-indicator"></div>
+    <div class="sel-name" id="sel-name">—</div>
+    <div class="sel-dims-badge" id="sel-dims-badge">—</div>
+  </div>
+
+  <!-- Dimension cards -->
+  <div class="dim-section">
+    <div class="dim-card locked" id="dim-w" onclick="setAnchor('width')">
+      <div class="dim-top-row">
+        <span class="dim-axis">W</span>
+        <span class="dim-status" id="status-w"></span>
+      </div>
+      <input class="dim-input" id="input-w" type="number" min="1" step="1"
+        oninput="onDimInput('width')" onfocus="setAnchor('width')" />
+      <div class="dim-unit">px</div>
+    </div>
+
+    <div class="dim-sep">×</div>
+
+    <div class="dim-card computing" id="dim-h" onclick="focusDim('height')">
+      <div class="dim-top-row">
+        <span class="dim-axis">H</span>
+        <span class="dim-status" id="status-h"></span>
+      </div>
+      <input class="dim-input" id="input-h" type="number" min="1" step="1"
+        oninput="onDimInput('height')" onfocus="setAnchor('height')" />
+      <div class="dim-unit">px</div>
+    </div>
+  </div>
+
+  <div class="lock-hint" id="lock-hint">Width <b>keep</b> — height will <b>change</b></div>
+
+  <!-- Ratio picker -->
+  <div class="ratio-section">
+    <div class="section-label">Ratio</div>
+    <div class="ratio-grid" id="ratio-grid">
+      <div class="ratio-pill" data-ratio="1:1" onclick="applyPreset('1:1')" onmouseenter="hoverPreset('1:1')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">1:1</div><div class="pill-name">Square</div>
+      </div>
+      <div class="ratio-pill" data-ratio="4:3" onclick="applyPreset('4:3')" onmouseenter="hoverPreset('4:3')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">4:3</div><div class="pill-name">Classic</div>
+      </div>
+      <div class="ratio-pill" data-ratio="3:2" onclick="applyPreset('3:2')" onmouseenter="hoverPreset('3:2')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">3:2</div><div class="pill-name">Photo</div>
+      </div>
+      <div class="ratio-pill" data-ratio="5:4" onclick="applyPreset('5:4')" onmouseenter="hoverPreset('5:4')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">5:4</div><div class="pill-name">Print</div>
+      </div>
+      <div class="ratio-pill" data-ratio="16:9" onclick="applyPreset('16:9')" onmouseenter="hoverPreset('16:9')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">16:9</div><div class="pill-name">Widescreen</div>
+      </div>
+      <div class="ratio-pill" data-ratio="16:10" onclick="applyPreset('16:10')" onmouseenter="hoverPreset('16:10')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">16:10</div><div class="pill-name">Laptop</div>
+      </div>
+      <div class="ratio-pill" data-ratio="21:9" onclick="applyPreset('21:9')" onmouseenter="hoverPreset('21:9')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">21:9</div><div class="pill-name">Ultra</div>
+      </div>
+      <div class="ratio-pill" data-ratio="2.39:1" onclick="applyPreset('2.39:1')" onmouseenter="hoverPreset('2.39:1')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">2.39:1</div><div class="pill-name">Cinema</div>
+      </div>
+      <div class="ratio-pill" data-ratio="9:16" onclick="applyPreset('9:16')" onmouseenter="hoverPreset('9:16')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">9:16</div><div class="pill-name">Portrait</div>
+      </div>
+      <div class="ratio-pill" data-ratio="2:3" onclick="applyPreset('2:3')" onmouseenter="hoverPreset('2:3')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">2:3</div><div class="pill-name">A-Paper</div>
+      </div>
+      <div class="ratio-pill" data-ratio="2:1" onclick="applyPreset('2:1')" onmouseenter="hoverPreset('2:1')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">2:1</div><div class="pill-name">Banner</div>
+      </div>
+      <div class="ratio-pill" data-ratio="1.618" onclick="applyPreset('1.618')" onmouseenter="hoverPreset('1.618')" onmouseleave="hoverEnd()">
+        <div class="pill-ratio">φ</div><div class="pill-name">Golden</div>
+      </div>
+    </div>
+
+    <!-- Custom ratio -->
+    <div class="custom-section">
+      <div class="custom-section-label">Custom ratio</div>
+      <div class="custom-formats">
+        Type <code>16:9</code> or a decimal like <code>1.778</code> then press Add
+      </div>
+      <div class="custom-row">
+        <input type="text" id="input-ratio" placeholder="e.g. 21:9 or 2.35"
+          oninput="onRatioInput()" onkeydown="onRatioKey(event)" />
+        <button class="custom-add-btn" id="btn-custom-add" onclick="commitCustomRatio()" disabled>Add</button>
+        <button class="steal-btn" onclick="sampleRatio()" title="Sample ratio from selected object">Steal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-row">
+    <div class="result-label">Result</div>
+    <div class="result-dims" id="result-dims">—</div>
+  </div>
+
+  <!-- Actions -->
+  <div class="action-row">
+    <button class="round-btn" id="btn-round" onclick="roundPixels()" disabled>
+      ≈ Whole<br>px
+    </button>
+    <button class="apply-btn" id="btn-apply" onclick="applyToSelected()" disabled>
+      Apply
+    </button>
+  </div>
+
+  <div class="footer-link">
+    <button onclick="goCreate()">+ New shape instead</button>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     CREATE
+════════════════════════════════════════════════════════════════════ -->
+<div id="screen-create" class="screen">
+
+  <div class="create-header">
+    <button class="back-btn" onclick="goBack()">←</button>
+    <div class="create-title">New Shape</div>
+  </div>
+
+  <div class="create-body">
+
+    <div class="create-dim-row">
+      <div class="create-dim-field">
+        <div class="create-dim-label">Width</div>
+        <div class="create-dim-wrap">
+          <input type="number" id="create-w" placeholder="400" min="1" step="1"
+            oninput="onCreateDim('width')" onfocus="setCreateAnchor('width')" value="400" />
+          <span class="unit">px</span>
+        </div>
+      </div>
+      <div class="create-sep">×</div>
+      <div class="create-dim-field">
+        <div class="create-dim-label">Height</div>
+        <div class="create-dim-wrap">
+          <input type="number" id="create-h" placeholder="400" min="1" step="1"
+            oninput="onCreateDim('height')" onfocus="setCreateAnchor('height')" value="400" />
+          <span class="unit">px</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label" style="margin-bottom:8px">Ratio</div>
+      <div class="create-ratio-grid">
+        <div class="ratio-pill" onclick="applyCreatePreset('1:1')" data-cratio="1:1">
+          <div class="pill-ratio">1:1</div><div class="pill-name">Square</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('4:3')" data-cratio="4:3">
+          <div class="pill-ratio">4:3</div><div class="pill-name">Classic</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('3:2')" data-cratio="3:2">
+          <div class="pill-ratio">3:2</div><div class="pill-name">Photo</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('5:4')" data-cratio="5:4">
+          <div class="pill-ratio">5:4</div><div class="pill-name">Print</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('16:9')" data-cratio="16:9">
+          <div class="pill-ratio">16:9</div><div class="pill-name">Widescreen</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('21:9')" data-cratio="21:9">
+          <div class="pill-ratio">21:9</div><div class="pill-name">Ultra</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('9:16')" data-cratio="9:16">
+          <div class="pill-ratio">9:16</div><div class="pill-name">Portrait</div>
+        </div>
+        <div class="ratio-pill" onclick="applyCreatePreset('1.618')" data-cratio="1.618">
+          <div class="pill-ratio">φ</div><div class="pill-name">Golden</div>
+        </div>
+      </div>
+      <div class="create-custom-row" style="margin-top:6px">
+        <input type="text" id="create-ratio" placeholder="e.g. 21:9 or 2.35"
+          oninput="onCreateRatioInput()" />
+      </div>
+    </div>
+
+    <div class="create-preview-line">
+      <div class="create-preview-label">Result</div>
+      <div class="create-preview-dims" id="create-preview">400 × 400 px</div>
+    </div>
+
+    <button class="create-btn" id="btn-create" onclick="createNew()">
+      Create Shape
+    </button>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════════
+const s = {
+  anchor: 'width',
+  width: null, height: null,
+  ratio: null, ratioStr: '',
+  hasSelection: false,
+  selName: '',
+  selW: 0, selH: 0,
+  selX: 0, selY: 0,
+  cAnchor: 'width',
+  cWidth: 400, cHeight: 400,
+  cRatio: null, cRatioStr: '',
+};
+
+// ══════════════════════════════════════════════════════════════════
+// Screen routing
+// ══════════════════════════════════════════════════════════════════
+let prevScreen = 'idle';
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(e => e.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function goCreate() {
+  prevScreen = s.hasSelection ? 'resize' : 'idle';
+  clearTimeout(previewTimer);
+  parent.postMessage({ pluginMessage: { type: 'clear-preview' } }, '*');
+  showScreen('create');
+  updateCreatePreview();
+}
+
+function goBack() { showScreen(prevScreen); }
+
+// ══════════════════════════════════════════════════════════════════
+// Shared helpers
+// ══════════════════════════════════════════════════════════════════
+function parseRatio(str) {
+  const t = str.trim();
+  const c = t.match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
+  if (c) { const b = parseFloat(c[2]); return b === 0 ? null : parseFloat(c[1]) / b; }
+  const d = parseFloat(t);
+  return (!isNaN(d) && d > 0) ? d : null;
+}
+function r2(v) { return Math.round(v * 100) / 100; }
+function canonical(str) {
+  const c = str.trim().match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
+  return c ? `${c[1]}:${c[2]}` : str.trim();
+}
+function el(id) { return document.getElementById(id); }
+
+// ══════════════════════════════════════════════════════════════════
+// Resize mode
+// ══════════════════════════════════════════════════════════════════
+function setAnchor(side) {
+  s.anchor = side;
+  el('dim-w').classList.toggle('locked',    side === 'width');
+  el('dim-h').classList.toggle('locked',    side === 'height');
+  el('dim-w').classList.toggle('computing', side === 'height');
+  el('dim-h').classList.toggle('computing', side === 'width');
+  el('lock-hint').innerHTML = side === 'width'
+    ? 'Width <b>keep</b> — height will <b>change</b>'
+    : 'Height <b>keep</b> — width will <b>change</b>';
+  syncDims();
+  schedulePreview();
+}
+
+function focusDim(side) {
+  setAnchor(side);
+  el(side === 'width' ? 'input-w' : 'input-h').focus();
+}
+
+function onDimInput(side) {
+  const val = parseFloat(el(side === 'width' ? 'input-w' : 'input-h').value);
+  if (side === 'width') s.width = isNaN(val) ? null : val;
+  else s.height = isNaN(val) ? null : val;
+  syncDims();
+  schedulePreview();
+}
+
+function onRatioInput() {
+  const raw = el('input-ratio').value;
+  const parsed = parseRatio(raw);
+  // Show invalid state on the input but don't commit until Add is pressed
+  el('input-ratio').classList.toggle('invalid', raw.trim().length > 0 && !parsed);
+  el('btn-custom-add').disabled = !parsed;
+  // Live-update pills highlight and dims as they type
+  if (parsed) {
+    highlightPills(raw.trim(), false);
+    s.ratio = parsed;
+    s.ratioStr = raw.trim();
+    syncDims();
+    schedulePreview();
+  }
+}
+
+function onRatioKey(e) {
+  if (e.key === 'Enter') commitCustomRatio();
+}
+
+function commitCustomRatio() {
+  const raw = el('input-ratio').value.trim();
+  const parsed = parseRatio(raw);
+  if (!parsed) return;
+  applyPreset(raw);
+  el('btn-custom-add').disabled = true;
+  el('input-ratio').classList.remove('invalid');
+}
+
+// ── Hover preview ─────────────────────────────────────────────────
+function hoverPreset(str) {
+  if (!s.hasSelection || !s.width || !s.height) return;
+  const r = parseRatio(str);
+  if (!r) return;
+  const w = s.anchor === 'width' ? s.width  : r2(s.height * r);
+  const h = s.anchor === 'width' ? r2(s.width / r) : s.height;
+  if (w > 0 && h > 0) {
+    parent.postMessage({ pluginMessage: {
+      type: 'hover-preview', x: s.selX, y: s.selY, width: w, height: h
+    }}, '*');
+  }
+}
+
+function hoverEnd() {
+  // Restore ghost to current committed ratio, or clear if none
+  sendPreview();
+}
+
+function applyPreset(str) {
+  el('input-ratio').value = str;
+  s.ratioStr = str;
+  s.ratio = parseRatio(str);
+  highlightPills(str, false);
+  syncDims();
+  schedulePreview();
+  const btn = el('btn-apply');
+  btn.classList.remove('ready');
+  void btn.offsetWidth;
+  btn.classList.add('ready');
+}
+
+function highlightPills(str, forCreate) {
+  const attr = forCreate ? 'data-cratio' : 'data-ratio';
+  const grid = forCreate ? '.create-ratio-grid' : '.ratio-grid';
+  const norm = canonical(str);
+  document.querySelectorAll(grid + ' .ratio-pill').forEach(p => {
+    const match = p.getAttribute(attr) === norm || p.getAttribute(attr) === str;
+    p.classList.toggle('active', match);
+  });
+}
+
+function syncDims() {
+  const r = s.ratio;
+  if (!r) { updateApplyBtn(); return; }
+  if (s.anchor === 'width' && s.width != null) {
+    s.height = r2(s.width / r);
+    setVal('input-h', s.height);
+  } else if (s.anchor === 'height' && s.height != null) {
+    s.width = r2(s.height * r);
+    setVal('input-w', s.width);
+  }
+  updateApplyBtn();
+}
+
+function setVal(id, val) {
+  const e = document.getElementById(id);
+  if (document.activeElement !== e) e.value = val != null ? val : '';
+}
+
+function updateApplyBtn() {
+  const valid = s.width > 0 && s.height > 0 && s.ratio > 0;
+  el('btn-apply').disabled = !(valid && s.hasSelection);
+  el('btn-round').disabled = !(valid && (s.width !== Math.round(s.width) || s.height !== Math.round(s.height)));
+  updateResultCallout(valid);
+}
+
+let lastResultStr = '';
+function updateResultCallout(valid) {
+  const dimsEl = el('result-dims');
+  if (!valid) {
+    dimsEl.classList.remove('active', 'flash');
+    dimsEl.innerHTML = '—';
+    lastResultStr = '';
+    return;
+  }
+  const str = `${s.width}×${s.height}`;
+  dimsEl.classList.add('active');
+  dimsEl.innerHTML = `${s.width} <span style="color:var(--ink3);font-weight:400">×</span> ${s.height} <span class="result-unit">px</span>`;
+  if (str !== lastResultStr) {
+    dimsEl.classList.remove('flash');
+    void dimsEl.offsetWidth;
+    dimsEl.classList.add('flash');
+    lastResultStr = str;
+  }
+}
+
+let roundTimer = null;
+function roundPixels() {
+  s.width = Math.round(s.width);
+  s.height = Math.round(s.height);
+  setVal('input-w', s.width);
+  setVal('input-h', s.height);
+  updateApplyBtn();
+  schedulePreview();
+  const btn = el('btn-round');
+  btn.classList.add('did-round');
+  clearTimeout(roundTimer);
+  roundTimer = setTimeout(() => btn.classList.remove('did-round'), 900);
+}
+
+function sampleRatio() {
+  parent.postMessage({ pluginMessage: { type: 'sample' } }, '*');
+}
+
+let previewTimer = null;
+function schedulePreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(sendPreview, 80);
+}
+
+function sendPreview() {
+  const valid = s.width > 0 && s.height > 0 && s.ratio > 0;
+  if (!valid || !s.hasSelection) {
+    parent.postMessage({ pluginMessage: { type: 'clear-preview' } }, '*');
+    return;
+  }
+  parent.postMessage({ pluginMessage: {
+    type: 'preview', x: s.selX, y: s.selY, width: s.width, height: s.height
+  }}, '*');
+}
+
+function applyToSelected() {
+  if (!s.hasSelection || !s.width || !s.height) return;
+  parent.postMessage({ pluginMessage: {
+    type: 'apply', width: s.width, height: s.height, ratioStr: s.ratioStr
+  }}, '*');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Create mode
+// ══════════════════════════════════════════════════════════════════
+function setCreateAnchor(side) { s.cAnchor = side; }
+
+function onCreateDim(side) {
+  const val = parseFloat(el(side === 'width' ? 'create-w' : 'create-h').value);
+  if (side === 'width') s.cWidth = isNaN(val) ? null : val;
+  else s.cHeight = isNaN(val) ? null : val;
+  s.cAnchor = side;
+  syncCreateDims();
+}
+
+function onCreateRatioInput() {
+  const raw = el('create-ratio').value;
+  s.cRatioStr = raw;
+  s.cRatio = parseRatio(raw);
+  highlightPills(raw.trim(), true);
+  syncCreateDims();
+}
+
+function applyCreatePreset(str) {
+  el('create-ratio').value = str;
+  s.cRatioStr = str;
+  s.cRatio = parseRatio(str);
+  highlightPills(str, true);
+  syncCreateDims();
+}
+
+function syncCreateDims() {
+  const r = s.cRatio;
+  if (r) {
+    if (s.cAnchor === 'width' && s.cWidth) {
+      s.cHeight = r2(s.cWidth / r);
+      setVal('create-h', s.cHeight);
+    } else if (s.cAnchor === 'height' && s.cHeight) {
+      s.cWidth = r2(s.cHeight * r);
+      setVal('create-w', s.cWidth);
+    }
+  }
+  updateCreatePreview();
+}
+
+function updateCreatePreview() {
+  const w = s.cWidth; const h = s.cHeight;
+  const valid = w > 0 && h > 0;
+  const prev = el('create-preview');
+  prev.textContent = valid ? `${w} × ${h} px` : '—';
+  prev.classList.toggle('invalid', !valid);
+  el('btn-create').disabled = !valid;
+}
+
+function createNew() {
+  const w = s.cWidth || 400;
+  const h = s.cHeight || 400;
+  parent.postMessage({ pluginMessage: {
+    type: 'create', width: w, height: h, ratioStr: s.cRatioStr || '1:1'
+  }}, '*');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Messages from plugin sandbox
+// ══════════════════════════════════════════════════════════════════
+window.onmessage = (event) => {
+  const msg = event.data.pluginMessage;
+  if (!msg) return;
+
+  switch (msg.type) {
+    case 'selection': {
+      s.hasSelection = true;
+      s.selName = msg.name;
+      s.selW = msg.width; s.selH = msg.height;
+      s.selX = msg.x || 0; s.selY = msg.y || 0;
+      el('sel-name').textContent = msg.name.split(' | ')[0].trim();
+      el('sel-dims-badge').textContent = `${msg.width} × ${msg.height}`;
+      s.width = msg.width; s.height = msg.height;
+      setVal('input-w', msg.width);
+      setVal('input-h', msg.height);
+      if (s.ratio) syncDims(); else updateApplyBtn();
+      const cur = document.querySelector('.screen.active');
+      if (!cur || cur.id !== 'screen-create') showScreen('resize');
+      setAnchor(s.anchor);
+      break;
+    }
+    case 'no-selection': {
+      s.hasSelection = false;
+      s.selName = '';
+      parent.postMessage({ pluginMessage: { type: 'clear-preview' } }, '*');
+      updateApplyBtn();
+      const active = document.querySelector('.screen.active');
+      if (!active || active.id !== 'screen-create') showScreen('idle');
+      break;
+    }
+    case 'sampled': {
+      el('input-ratio').value = msg.ratio;
+      s.ratioStr = msg.ratio;
+      s.ratio = parseRatio(msg.ratio);
+      highlightPills(msg.ratio, false);
+      syncDims();
+      schedulePreview();
+      showToast(`Ratio stolen: ${msg.ratio}`);
+      break;
+    }
+    case 'applied':
+      showToast('Applied ✓', 'success');
+      break;
+    case 'created':
+      showToast('Shape created ✓', 'success');
+      break;
+    case 'error':
+      showToast(msg.message, 'error');
+      break;
+  }
+};
+
+// ══════════════════════════════════════════════════════════════════
+// Toast
+// ══════════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type = '') {
+  const e = document.getElementById('toast');
+  e.textContent = msg;
+  e.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => e.className = '', 2200);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════
+parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
+setAnchor('width');
+updateCreatePreview();
+</script>
+</body>
+</html>
