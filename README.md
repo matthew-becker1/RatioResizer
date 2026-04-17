@@ -37,7 +37,7 @@ A Figma plugin for designers who care about precision. Select any frame, compone
 ### Prerequisites
 
 - [Node.js](https://nodejs.org)
-- [Figma desktop app](https://figma.com/downloads)
+- Figma desktop app required for local development (published plugin works in desktop and browser)
 
 ### Setup
 
