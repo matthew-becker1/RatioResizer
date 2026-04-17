@@ -8,22 +8,41 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #f5f5f2;
-  --surface: #ffffff;
-  --border:  #d8d8d0;
-  --border2: #c0c0b8;
-  --ink:     #0a0a0a;
-  --ink2:    #555550;
-  --ink3:    #999990;
-  --accent:  #1a1aff;
-  --success: #007a3d;
-  --danger:  #cc2200;
+  /* becker-ds · Midnight Blueprint */
+  --color-bg:            #0D1B2A;
+  --color-surface:       #1C3248;
+  --color-elevated:      #2A4A65;
+  --color-text:          #F5F0E8;
+  --color-text-2:        #AABAC5;
+  --color-text-muted:    #7A8A95;
+  --color-accent:        #FBAC42;
+  --color-positive:      #399646;
+  --color-negative:      #D83726;
+  --color-border:        #2A4A65;
+  --color-border-strong: #7A8A95;
+  --color-border-accent: #FBAC42;
+
+  --font-headline: 'Roboto Slab', Georgia, serif;
+  --font-mono:     'Roboto Mono', 'Courier Prime', monospace;
+  --font-body:     'Inter', system-ui, sans-serif;
+
+  /* plugin aliases */
+  --bg:      var(--color-bg);
+  --surface: var(--color-surface);
+  --border:  var(--color-border);
+  --border2: var(--color-border-strong);
+  --ink:     var(--color-text);
+  --ink2:    var(--color-text-2);
+  --ink3:    var(--color-text-muted);
+  --accent:  var(--color-accent);
+  --success: var(--color-positive);
+  --danger:  var(--color-negative);
   --r:       4px;
-  --mono:    "SF Mono", "Fira Mono", "Cascadia Mono", monospace;
+  --mono:    var(--font-mono);
 }
 
 html, body {
-  width: 300px;
+  width: 100%;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--mono);
@@ -59,6 +78,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   font-weight: 700;
 }
 .idle-title {
+  font-family: var(--font-headline);
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
@@ -122,6 +142,17 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   letter-spacing: 0.02em;
   flex-shrink: 0;
 }
+.sel-ratio-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-bg);
+  background: var(--color-accent);
+  border: 1px solid var(--color-border-accent);
+  border-radius: var(--r);
+  padding: 2px 6px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
 
 /* Dimension cards */
 .dim-section {
@@ -140,10 +171,10 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   transition: border-color 0.1s, background 0.1s;
   position: relative;
 }
-.dim-card:hover { background: #f0f0ec; }
+.dim-card:hover { background: var(--color-elevated); }
 .dim-card.locked {
   border-color: var(--accent);
-  background: #eeeeff;
+  background: var(--color-elevated);
 }
 .dim-card.computing { opacity: 0.45; }
 
@@ -249,15 +280,15 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   background: var(--bg);
   position: relative;
 }
-.ratio-pill:hover { border-color: var(--accent); background: #eeeeff; }
+.ratio-pill:hover { border-color: var(--accent); background: var(--color-elevated); }
 .ratio-pill:active { transform: scale(0.96); }
 .ratio-pill.active {
   border-color: var(--accent);
   background: var(--accent);
 }
-.ratio-pill.active .pill-ratio { color: #fff; }
-.ratio-pill.active .pill-name  { color: rgba(255,255,255,0.7); }
-.ratio-pill.hovering { border-color: var(--accent); background: #eeeeff; }
+.ratio-pill.active .pill-ratio { color: var(--color-bg); }
+.ratio-pill.active .pill-name  { color: var(--color-bg); opacity: 0.65; }
+.ratio-pill.hovering { border-color: var(--accent); background: var(--color-elevated); }
 .pill-ratio {
   font-family: var(--mono);
   font-size: 10px;
@@ -329,10 +360,10 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 700;
-  background: var(--ink);
-  border: none;
+  background: var(--color-elevated);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--r);
-  color: #fff;
+  color: var(--color-text);
   padding: 6px 10px;
   cursor: pointer;
   white-space: nowrap;
@@ -431,7 +462,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   background: var(--accent);
   border: none;
   border-radius: var(--r);
-  color: #fff;
+  color: var(--color-bg);
   padding: 10px;
   cursor: pointer;
   letter-spacing: 0.06em;
@@ -443,8 +474,8 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 .apply-btn:disabled { opacity: 0.2; cursor: default; transform: none; }
 .apply-btn.ready { animation: apply-pulse 0.3s ease; }
 @keyframes apply-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(26,26,255,0.4); }
-  100% { box-shadow: 0 0 0 6px rgba(26,26,255,0); }
+  0%   { box-shadow: 0 0 0 0 rgba(251,172,66,0.4); }
+  100% { box-shadow: 0 0 0 6px rgba(251,172,66,0); }
 }
 
 /* Footer link */
@@ -607,10 +638,10 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 700;
-  background: var(--ink);
+  background: var(--color-accent);
   border: none;
   border-radius: var(--r);
-  color: #fff;
+  color: var(--color-bg);
   padding: 10px;
   cursor: pointer;
   letter-spacing: 0.08em;
@@ -625,13 +656,13 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
 #toast {
   position: fixed;
   bottom: 10px; left: 10px; right: 10px;
-  background: var(--ink);
+  background: var(--color-elevated);
   border-radius: var(--r);
   padding: 7px 12px;
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-text);
   letter-spacing: 0.04em;
   text-align: center;
   transform: translateY(40px);
@@ -667,6 +698,7 @@ body { display: flex; flex-direction: column; min-height: 100vh; }
     <div class="sel-indicator"></div>
     <div class="sel-name" id="sel-name">—</div>
     <div class="sel-dims-badge" id="sel-dims-badge">—</div>
+    <div class="sel-ratio-badge" id="sel-ratio-badge" style="display:none">—</div>
   </div>
 
   <!-- Dimension cards -->
@@ -903,6 +935,16 @@ function parseRatio(str) {
   return (!isNaN(d) && d > 0) ? d : null;
 }
 function r2(v) { return Math.round(v * 100) / 100; }
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+function toRatioStr(w, h) {
+  const ww = Math.round(w * 100);
+  const hh = Math.round(h * 100);
+  const g = gcd(ww, hh);
+  const rw = ww / g;
+  const rh = hh / g;
+  if (rw <= 200 && rh <= 200) return `${rw}:${rh}`;
+  return `${r2(w / h)}`;
+}
 function canonical(str) {
   const c = str.trim().match(/^(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)$/);
   return c ? `${c[1]}:${c[2]}` : str.trim();
@@ -1171,6 +1213,9 @@ window.onmessage = (event) => {
       s.selX = msg.x || 0; s.selY = msg.y || 0;
       el('sel-name').textContent = msg.name.split(' | ')[0].trim();
       el('sel-dims-badge').textContent = `${msg.width} × ${msg.height}`;
+      const rb = el('sel-ratio-badge');
+      rb.textContent = toRatioStr(msg.width, msg.height);
+      rb.style.display = '';
       s.width = msg.width; s.height = msg.height;
       setVal('input-w', msg.width);
       setVal('input-h', msg.height);
@@ -1183,6 +1228,7 @@ window.onmessage = (event) => {
     case 'no-selection': {
       s.hasSelection = false;
       s.selName = '';
+      el('sel-ratio-badge').style.display = 'none';
       parent.postMessage({ pluginMessage: { type: 'clear-preview' } }, '*');
       updateApplyBtn();
       const active = document.querySelector('.screen.active');
